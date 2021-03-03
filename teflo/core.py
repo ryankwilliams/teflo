@@ -1207,6 +1207,15 @@ class ProvisionerPlugin(TefloPlugin):
     def validate(self):
         raise NotImplementedError
 
+    def get_config_params(self):
+
+        cfg = dict()
+        for item in self.config['PROVISIONER_OPTIONS']:
+            if item['name'] == getattr(self.asset, 'provisioner').__plugin_name__.replace('-', ''):
+                cfg = item
+                break
+        return cfg
+
 
 class ImporterPlugin(TefloPlugin):
     """Teflo reporter plugin class.
@@ -1239,8 +1248,10 @@ class ImporterPlugin(TefloPlugin):
         self.artifacts = []
         self.config = getattr(self.report, 'config')
         # build the config params that might be useful to plugin and instantiate
+        # TODO remove this logic and use the get_config_params method, change the plugin code to call the
+        # TODO get_config_params method
         if report.do_import:
-            plugin_name = getattr(self.report, 'importer_plugin').__plugin_name__
+            plugin_name = getattr(self.report, 'importer_plugin').__plugin_name__.replace('-', '')
             config_params = dict()
             for k, v in self.config.items():
                 if plugin_name.upper() in k:
@@ -1248,6 +1259,15 @@ class ImporterPlugin(TefloPlugin):
             self.config_params = config_params
         else:
             self.config_params = {}
+
+    def get_config_params(self):
+
+        cfg = dict()
+        for item in self.config['IMPORTER_OPTIONS']:
+            if item['name'] == getattr(self.report, 'importer_plugin').__plugin_name__.replace('-', ''):
+                cfg = item
+                break
+        return cfg
 
     def aggregate_artifacts(self):
         raise NotImplementedError
@@ -1282,6 +1302,15 @@ class OrchestratorPlugin(TefloPlugin):
 
     def run(self):
         raise NotImplementedError
+
+    def get_config_params(self):
+
+        cfg = dict()
+        for item in self.config['ORCHESTRATOR_OPTIONS']:
+            if item['name'] == getattr(self.action, 'orchestrator').__plugin_name__.replace('-', ''):
+                cfg = item
+                break
+        return cfg
 
     @property
     def name(self):
@@ -1341,6 +1370,15 @@ class ExecutorPlugin(TefloPlugin):
 
     def run(self):
         raise NotImplementedError
+
+    def get_config_params(self):
+
+        cfg = dict()
+        for item in self.config['EXECUTOR_OPTIONS']:
+            if item['name'] == getattr(self.execute, 'executor').__plugin_name__.replace('-', ''):
+                cfg = item
+                break
+        return cfg
 
     @property
     def name(self):
@@ -1411,7 +1449,7 @@ class NotificationPlugin(TefloPlugin):
 
         cfg = dict()
         for item in self.config['NOTIFICATIONS']:
-            if item['name'] == getattr(self.notification, 'notifier').__plugin_name__:
+            if item['name'] == getattr(self.notification, 'notifier').__plugin_name__.replace('-', ''):
                 cfg = item
                 break
         return cfg

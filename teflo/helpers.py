@@ -228,14 +228,14 @@ def get_executors_plugin_classes():
 
 
 def get_executor_plugin_class(name):
-    """Return the executor class based on the __executor_name__ set
+    """Return the executor class based on the executor __plugin_name__ set
     within the class.
 
     :param name: the name of the executor
     :return: the executor class
     """
     for executor in get_executors_plugin_classes():
-        if executor.__executor_name__ == name:
+        if executor.__plugin_name__ == name:
             return executor
 
 
@@ -244,7 +244,7 @@ def get_executors_plugin_list():
 
     :return: executors
     """
-    return [executor.__executor_name__ for executor in
+    return [executor.__plugin_name__ for executor in
             get_executors_plugin_classes()]
 
 
@@ -926,17 +926,40 @@ def ssh_retry(obj):
 
     return check_access
 
+# TODO need to change this since we are changing orchestrator_OPTIONS in config
+# def get_ans_verbosity(config):
+#     """Setting ansible verbosity
+#     If the verbosity is not set in teflo.cfg, then the teflo log_level is checked.
+#     If it is debug then verbotity is vvvv else it is None """
+#
+#     if "ANSIBLE_VERBOSITY" in config and \
+#             config["ANSIBLE_VERBOSITY"]:
+#         ver = config["ANSIBLE_VERBOSITY"]
+#         if False in [letter == 'v' for letter in ver]:
+#             LOG.warning("Incorrect verbosity %s is set in teflo config file." % ver)
+#             ans_verbosity = 'vvvv' if config['LOG_LEVEL'] == 'debug' else None
+#             LOG.warning("Ansible logging set to %s" % ans_verbosity)
+#         else:
+#             ans_verbosity = ver
+#     elif config['LOG_LEVEL'] == 'debug':
+#         ans_verbosity = 'vvvv'
+#     else:
+#         ans_verbosity = None
+#
+#     return ans_verbosity
 
 def get_ans_verbosity(config):
     """Setting ansible verbosity
-    If the verbosity is not set in teflo.cfg, then the teflo log_level is checked.
+    If the verbosity is not set in teflo.cfg/ or as orchestrator env variable, then the teflo log_level is checked.
     If it is debug then verbotity is vvvv else it is None """
-
-    if "ANSIBLE_VERBOSITY" in config and \
-            config["ANSIBLE_VERBOSITY"]:
-        ver = config["ANSIBLE_VERBOSITY"]
+    ver = None
+    for item in config["ORCHESTRATOR_OPTIONS"]:
+        if item['name'].lower() == 'ansible':
+            ver = item.get("verbosity", None)
+            break
+    if ver:
         if False in [letter == 'v' for letter in ver]:
-            LOG.warning("Incorrect verbosity %s is set in teflo config file." % ver)
+            LOG.warning("Incorrect verbosity %s is set in teflo config file or env variable." % ver)
             ans_verbosity = 'vvvv' if config['LOG_LEVEL'] == 'debug' else None
             LOG.warning("Ansible logging set to %s" % ans_verbosity)
         else:
@@ -1415,7 +1438,7 @@ def set_task_class_concurrency(task, resource):
     :return: TefloTask class
     """
     val = getattr(resource, 'config')['TASK_CONCURRENCY'].get(task['task'].__task_name__.upper())
-    if val == 'True':
+    if val.lower() == 'true':
         val = True
     else:
         val = False

@@ -209,7 +209,7 @@ class Execute(TefloResource):
         if isinstance(self.executor, string_types):
             profile.update({'executor': self.executor})
         else:
-            profile.update({'executor': getattr(self.executor, '__executor_name__')})
+            profile.update({'executor': getattr(self.executor, '__plugin_name__')})
 
         # set the execute's hosts
         if all(isinstance(item, string_types) for item in self.hosts):

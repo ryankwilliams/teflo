@@ -25,10 +25,10 @@
     :license: GPLv3, see LICENSE for more details.
 """
 import os
-
 from .._compat import RawConfigParser
 from ..constants import DEFAULT_CONFIG, DEFAULT_CONFIG_SECTIONS, DEFAULT_TASK_CONCURRENCY, DEFAULT_TIMEOUT
 from ..ansible_helpers import AnsibleCredentialManager
+from dynaconf import Dynaconf
 
 
 class Config(dict):
@@ -41,6 +41,10 @@ class Config(dict):
         """Constructor."""
         super(Config, self).__init__(DEFAULT_CONFIG)
         self.__set_parser__()
+        self.dynaconf_settings = Dynaconf(envvar_prefix="TEFLO"
+                                          # includes=["/home/rushinde/teflo_changes/e2e-acceptance-tests_or/teflo.cfg"],
+                                          # ignore_unknown_envvars=True
+                                          )
 
     def __set_parser__(self):
         """Set the raw config parser."""
@@ -50,6 +54,28 @@ class Config(dict):
         """Delete the raw config parser."""
         del self.parser
 
+    def override_with_env_variables(self, match_str, list_config_dict = None):
+        # looking at the TEFLO env variables and overriding the cfg options
+        for k, v in self.dynaconf_settings.items():
+            if not k.startswith(match_str):
+                continue
+            if match_str == 'DEFAULTS_':
+                name = k.split(match_str, 1)[-1]
+                self.__setitem__(name, v)
+            elif match_str == 'CREDENTIALS_':
+                continue
+            else:
+                name, prop = k.split(match_str, 1)[-1].split('_', 1)
+                name_not_found = 1
+                for item in list_config_dict:
+                    if item['name'] == name.lower():
+                        item[prop.lower()] = v
+                        name_not_found = 0
+                if name_not_found:
+                    list_config_dict.append({'name': name.lower(), prop.lower(): v})
+
+        return list_config_dict
+
     def __set_defaults__(self):
         """Set the default configuration settings."""
         # A check to continue the flow if default section is not provided in teflo.cfg
@@ -57,7 +83,11 @@ class Config(dict):
             for k, v in getattr(self.parser, '_sections')['defaults'].items():
                 if k == '__name__':
                     continue
-                self.__setitem__(k.upper(), v)
+                if self.dynaconf_settings.get(k.upper(), None):
+                    self.__setitem__(k.upper(), self.dynaconf_settings[k.upper()])
+                else:
+                    self.__setitem__(k.upper(), v)
+        self.override_with_env_variables('DEFAULTS_')
 
     def __set_credentials__(self, **kwargs):
         """Set the credentials configuration settings."""
@@ -83,94 +113,64 @@ class Config(dict):
 
     def __set_orchestrator__(self):
         """Set the orchestrator configuration settings."""
+        orchestrator_options = []
         for section in getattr(self.parser, '_sections'):
             if not section.startswith('orchestrator'):
                 continue
 
-            orchestrator = section.split(':')[-1]
-
+            _orchestrator_options = {}
+            # removing any dashes (-)
+            orchestrator = section.split(':')[-1].replace('-', '')
+            # checking the config file first
             for option in self.parser.options(section):
-                self.__setitem__(
-                    (orchestrator + '_' + option).upper(),
-                    self.parser.get(section, option)
-                )
+                _orchestrator_options[option] = self.parser.get(section, option)
+            _orchestrator_options['name'] = orchestrator
+            orchestrator_options.append(_orchestrator_options)
+
+        # looking at the TEFLO env variables and overriding the cfg options
+        env_options = self.override_with_env_variables('ORCHESTRATOR_', orchestrator_options)
+        self.__setitem__('ORCHESTRATOR_OPTIONS', env_options)
 
     def __set_executor__(self):
         """Set the executor configuration settings."""
+
+        executor_options = []
         for section in getattr(self.parser, '_sections'):
             if not section.startswith('executor'):
                 continue
-
-            executor = section.split(':')[-1]
-
+            _executor_options = {}
+            # removing any dashes (-)
+            executor = section.split(':')[-1].replace('-', '')
+            # checking the config file first
             for option in self.parser.options(section):
-                self.__setitem__(
-                    (executor + '_' + option).upper(),
-                    self.parser.get(section, option)
-                )
+                _executor_options[option] = self.parser.get(section, option)
+            _executor_options['name'] = executor
+            executor_options.append(_executor_options)
+
+        # looking at the TEFLO env variables and overriding the cfg options
+        env_options = self.override_with_env_variables('EXECUTOR_', executor_options)
+
+        self.__setitem__('EXECUTOR_OPTIONS', env_options)
 
     def __set_importer__(self):
         """Set the importer configuration settings."""
+        importer_options = []
         for section in getattr(self.parser, '_sections'):
             if not section.startswith('importer'):
                 continue
-
-            importer = section.split(':')[-1]
-
+            _importer_options = {}
+            # removing any dashes (-)
+            importer = section.split(':')[-1].replace('-', '')
+            # checking the config file first
             for option in self.parser.options(section):
-                self.__setitem__(
-                    (importer + '_' + option).upper(),
-                    self.parser.get(section, option)
-                )
+                _importer_options[option] = self.parser.get(section, option)
+            _importer_options['name'] = importer
+            importer_options.append(_importer_options)
 
-    def __set_feature_toggles__(self):
-        """Set the feature toggle configuration settings."""
-        toggles = []
+        # looking at the TEFLO env variables and overriding the cfg options
+        env_options = self.override_with_env_variables('IMPORTER_', importer_options)
+        self.__setitem__('IMPORTER_OPTIONS', env_options)
 
-        for section in getattr(self.parser, '_sections'):
-            if not section.startswith('feature_toggles'):
-                continue
-
-            _toggles = {}
-
-            for option in self.parser.options(section):
-                _toggles[option] = \
-                    self.parser.get(section, option)
-                _toggles['name'] = section.split(':')[-1]
-                toggles.append(_toggles)
-
-        self.__setitem__('TOGGLES', toggles)
-
-    def __set_task_concurrency__(self):
-        """Set the task if it should be executed concurrently."""
-
-        _concurrency_settings = DEFAULT_TASK_CONCURRENCY
-
-        for section in getattr(self.parser, '_sections'):
-            if not section.startswith('task_concurrency'):
-                continue
-
-            for option in self.parser.options(section):
-                _concurrency_settings.update({option.upper(): self.parser.get(section, option)})
-
-        self.__setitem__('TASK_CONCURRENCY', _concurrency_settings)
-
-    def __set_setup_logger__(self):
-        """
-        Set new loggers that teflo should configure logging. This
-        is so those libraries/utils log their logger output to
-        teflo's console and filehandler using teflo's formatter.
-        """
-        _logging_settings = []
-
-        for section in getattr(self.parser, '_sections'):
-            if not section.startswith('setup_logger'):
-                continue
-
-            for option in self.parser.options(section):
-                _logging_settings.append(self.parser.get(section, option))
-
-        self.__setitem__('SETUP_LOGGER', _logging_settings)
 
     def __set_notifications__(self):
         """Set the notification configuration settings."""
@@ -182,13 +182,18 @@ class Config(dict):
 
             _notifications = {}
 
+            # removing any dashes (-)
+            notifier = section.split(':')[-1].replace('-', '')
+            # checking the config file first
             for option in self.parser.options(section):
-                _notifications[option] = \
-                    self.parser.get(section, option)
-            _notifications['name'] = section.split(':')[-1]
+                 _notifications[option] = self.parser.get(section, option)
+            _notifications['name'] = notifier
             notifications.append(_notifications)
 
-        self.__setitem__('NOTIFICATIONS', notifications)
+        # looking at the TEFLO env variables and overriding the cfg options
+        env_options = self.override_with_env_variables('NOTIFIER_', notifications)
+
+        self.__setitem__('NOTIFICATIONS', env_options)
 
     def __set_provisioner__(self):
         """Set the provisioner configuration settings."""
@@ -201,12 +206,77 @@ class Config(dict):
             _provisioner_options = {}
 
             for option in self.parser.options(section):
-                _provisioner_options[option] = \
-                    self.parser.get(section, option)
-            _provisioner_options['name'] = section.split(':')[-1]
+                _provisioner_options[option] = self.parser.get(section, option)
+            _provisioner_options['name'] = section.split(':')[-1].replace('-', '')
+
             provisioner_options.append(_provisioner_options)
 
-        self.__setitem__('PROVISIONER_OPTIONS', provisioner_options)
+        # looking at the TEFLO env variables and overriding the cfg options
+        env_options = self.override_with_env_variables('PROVISIONER_', provisioner_options)
+
+        self.__setitem__('PROVISIONER_OPTIONS', env_options)
+
+    def __set_feature_toggles__(self):
+        """Set the feature toggle configuration settings."""
+        toggles = []
+
+        for section in getattr(self.parser, '_sections'):
+            if not section.startswith('feature_toggles'):
+                continue
+
+            _toggles = {}
+
+            for option in self.parser.options(section):
+                _toggles[option] = self.parser.get(section, option)
+            _toggles['name'] = section.split(':')[-1].replace('-', '')
+            toggles.append(_toggles)
+
+        # looking at the TEFLO env variables and overriding the cfg options
+        env_options = self.override_with_env_variables('FEATURE_TOGGLES_', toggles)
+
+        self.__setitem__('TOGGLES', env_options)
+
+    def __set_task_concurrency__(self):
+        """Set the task if it should be executed concurrently."""
+
+        _concurrency_settings = DEFAULT_TASK_CONCURRENCY
+
+        for section in getattr(self.parser, '_sections'):
+            if not section.startswith('task_concurrency'):
+                continue
+
+            for option in self.parser.options(section):
+                _concurrency_settings.update({option.upper(): self.parser.get(section, option)})
+            for keys in _concurrency_settings.keys():
+                match_str = 'TASK_CONCURRENCY_' + keys
+                if self.dynaconf_settings.get(match_str, None):
+                    _concurrency_settings[keys] = self.dynaconf_settings[match_str]
+
+        self.__setitem__('TASK_CONCURRENCY', _concurrency_settings)
+
+    # TODO need to modify this method to use dynaconf_settings
+    def __set_setup_logger__(self):
+        """
+        Set new loggers that teflo should configure logging. This
+        is so those libraries/utils log their logger output to
+        teflo's console and filehandler using teflo's formatter.
+        """
+        _logging_settings = []
+
+        # [setup_logger]
+        # reportportal=carbon_rppreproc_plugin
+
+        # [setup_logger:reportportal]
+        # logger=carbon_rppreproc_plugin
+
+        for section in getattr(self.parser, '_sections'):
+            if not section.startswith('setup_logger'):
+                continue
+
+            for option in self.parser.options(section):
+                _logging_settings.append(self.parser.get(section, option))
+
+        self.__setitem__('SETUP_LOGGER', _logging_settings)
 
     def __set_timeout__(self):
         """
@@ -225,6 +295,11 @@ class Config(dict):
                 continue
             for option in self.parser.options(section):
                 _timeout.update({option.upper(): int(self.parser.get(section, option))})
+            for keys in _timeout:
+                match_str = 'TIMEOUT_' + keys
+                if self.dynaconf_settings.get(match_str, None):
+                    _timeout[keys] = int(self.dynaconf_settings[match_str])
+
         self.__setitem__('TIMEOUT', _timeout)
 
     def load(self):

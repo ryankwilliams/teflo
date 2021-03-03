@@ -112,7 +112,10 @@ DEFAULT_CONFIG = {
     'SETUP_LOGGER': [],
     'NOTIFICATIONS': [],
     "TIMEOUT": DEFAULT_TIMEOUT,
-    "PROVISIONER_OPTIONS": []
+    "PROVISIONER_OPTIONS": [],
+    "ORCHESTRATOR_OPTIONS": [],
+    "EXECUTOR_OPTIONS": [],
+    "IMPORTER_OPTIONS": []
 }
 
 # Default config sections

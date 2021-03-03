@@ -44,7 +44,8 @@ class AnsibleExecutorPlugin(ExecutorPlugin):
     """
 
     # keeping the name as runner for backward compatibility
-    __executor_name__ = 'runner'
+    #__executor_name__ = 'runner'
+    __plugin_name__ = 'runner'
     __schema_file_path__ = os.path.abspath(os.path.join(os.path.dirname(__file__), "files/schema.yml"))
     __schema_ext_path__ = os.path.abspath(os.path.join(os.path.dirname(__file__), "files/extensions.py"))
 
@@ -67,6 +68,8 @@ class AnsibleExecutorPlugin(ExecutorPlugin):
         self.options = getattr(package, 'ansible_options', None)
         self.ignorerc = getattr(package, 'ignore_rc', False)
         self.validrc = getattr(package, 'valid_rc', None)
+        self.config_params = self.get_config_params()
+        print(self.config_params)
 
         self.injector = DataInjector(self.all_hosts)
 
@@ -243,7 +246,7 @@ class AnsibleExecutorPlugin(ExecutorPlugin):
         for r in sync_results:
             if r['rc'] != 0 and not r['skipped']:
                 # checking if exit on error is set to true in teflo.cfg file
-                if self.config.get('RUNNER_EXIT_ON_ERROR', 'False').lower() == 'true':
+                if self.config_params.get('exit_on_error', 'False').lower() == 'true':
                     raise TefloExecuteError('Failed to copy the artifact(s), %s, from %s' % (r['artifact'], r['host']))
                 else:
                     self.logger.error('Failed to copy the artifact(s), %s, from %s' % (r['artifact'], r['host']))
@@ -277,7 +280,7 @@ class AnsibleExecutorPlugin(ExecutorPlugin):
         else:
             self.execute.artifact_locations = artifact_location
 
-        if self.config.get('RUNNER_TESTRUN_RESULTS') and self.config.get('RUNNER_TESTRUN_RESULTS').lower() == 'false':
+        if self.config_params.get('testrun_results') and self.config_params.get('testrun_results').lower() == 'false':
             self.execute.testrun_results = {}
         else:
             self.execute.testrun_results = create_testrun_results(self.injector.inject_list

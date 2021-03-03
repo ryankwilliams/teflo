@@ -59,6 +59,7 @@ class AnsibleOrchestratorPlugin(OrchestratorPlugin):
         self.script = getattr(package, 'ansible_script', None)
         self.shell = getattr(package, 'ansible_shell', None)
         self.all_hosts = getattr(package, 'all_hosts', [])
+        self.config_params = self.get_config_params()
 
         # calling the method to do a backward compatibility check in case user is defining name field as a path for
         # script or playbook
