@@ -48,8 +48,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'ansible>=2.5.0',
-        'ansible-base != 2.10.6',
+        'ansible>=4.0',
         'apache-libcloud==2.2.0',
         "blaster>=0.3.0",
         'Click>=6.7',
