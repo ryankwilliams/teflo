@@ -362,7 +362,7 @@ resource for OpenStack using the **openstack-libcloud** provisioner:
         - True
 
     *   - flavor
-        - The name or ID of the flavor to boot.
+        - The name of the flavor to boot.
         - String
         - True
 

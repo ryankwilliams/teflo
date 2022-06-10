@@ -213,7 +213,7 @@ class OpenstackLibCloudProvisionerPlugin(ProvisionerPlugin):
         the size object matching the size (flavor) given. If no size is found,
         an exception will be raised.
 
-        :param name: Image name.
+        :param name: Flavor size name.
         :type name: str
         :return: Size object.
         :rtype: object
