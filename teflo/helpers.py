@@ -912,7 +912,10 @@ def ssh_retry(obj):
                         LOG.info('Attempt %s of %s: retrying in %s seconds' %
                                  (attempt, MAX_ATTEMPTS, MAX_WAIT_TIME))
                         time.sleep(MAX_WAIT_TIME)
-                except Exception:
+                except Exception as ex:
+                    import traceback
+                    traceback.print_exc()
+                    LOG.error(ex.message)
                     LOG.error("Error occured while attempting to ssh to the host. Please verify ssh keys")
                     return True
 
